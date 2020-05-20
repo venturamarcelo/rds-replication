@@ -1,0 +1,28 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "rds:DescribeDBInstances",
+                "rds:CreateDBInstance",
+                "rds:DeleteDBInstance",
+                "rds:DeleteDBInstanceAutomatedBackup",
+                "rds:ModifyDBInstance",
+                "rds:StartDBInstance",
+                "rds:StopDBInstance",
+                "rds:DescribeDBSnapshots",
+                "rds:RestoreDBInstanceFromDBSnapshot"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kms:DescribeKey"
+              ],
+            "Resource": "arn:aws:kms:*:*:*"
+        }
+    ]
+}

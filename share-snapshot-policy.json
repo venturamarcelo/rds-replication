@@ -1,0 +1,16 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "rds:CopyDBSnapshot",
+                "rds:ModifyDBSnapshot",
+                "rds:DescribeDBSnapshots",
+                "rds:ModifyDBSnapshotAttribute"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}
