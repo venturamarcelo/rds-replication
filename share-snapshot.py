@@ -1,6 +1,8 @@
+import json
 import boto3
 import logging
 import datetime
+import os
 
 from operator import itemgetter
 
@@ -9,24 +11,30 @@ env_level = "INFO"
 log_level = logging.INFO if not env_level else env_level
 logger.setLevel(log_level)
 
-session = boto3.Session(profile_name='production')
-rds = session.client('rds')
+rds = boto3.client('rds')
+kms = boto3.client('kms')
 waiter = rds.get_waiter('db_snapshot_available')
 
-SHARED_ACCOUNT = ""
-DB_IDENTIFIER = "database"
-RDS_CUSTOM_KEY_ID = ""
+SHARED_ACCOUNT = os.environ.get("SHARED_ACCOUNT")
+DB_IDENTIFIER = os.environ.get("DB_IDENTIFIER")
+CMK_ALIAS = os.environ.get("CMK_ALIAS")
+
+def get_kms_id(alias):
+    """ From KMS, return the CMK KeyId based on Key Alias """
+    response = kms.describe_key(KeyId=f'alias/{alias}')
+    return response['KeyMetadata']['KeyId']
 
 def copy_snapshot(db_identifier):
     timestamp = '{:%Y%m%d-%H%M%S}'.format(datetime.datetime.now())
     snapshot_copy = f"{db_identifier}-snapshot-copy-{timestamp}"
+    keyid = get_kms_id(CMK_ALIAS)
     print(f"Find latest snapshot of: {db_identifier}")
     response = rds.describe_db_snapshots(DBInstanceIdentifier=db_identifier, SnapshotType='automated')
     sorted_keys = sorted(response['DBSnapshots'], key=itemgetter('SnapshotCreateTime'), reverse=True)
     snapshot_id = sorted_keys[0]['DBSnapshotIdentifier']
     rds.copy_db_snapshot(SourceDBSnapshotIdentifier=snapshot_id,
                          TargetDBSnapshotIdentifier=snapshot_copy,
-                         KmsKeyId=RDS_CUSTOM_KEY_ID)
+                         KmsKeyId=keyid)
     return snapshot_copy
 
 def share_snapshot(db_identifier, snapshot_id):
@@ -50,10 +58,8 @@ def share_snapshot(db_identifier, snapshot_id):
     except Exception as e:
         logger.warning(e)
 
-def main():
-    print("Starting...")
+def lambda_handler(event, context):
+    print(f"Starting Copying a new snapshot and sharing with {SHARED_ACCOUNT} account ...")
     snapshot_copy = copy_snapshot(DB_IDENTIFIER)
     share_snapshot(DB_IDENTIFIER, snapshot_copy)
-
-if __name__ == "__main__":
-    main()
+    
